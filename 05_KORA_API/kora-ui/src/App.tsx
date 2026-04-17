@@ -13,13 +13,17 @@ import {
   Eye,
   EyeOff,
   Phone,
+  ArrowLeft,
 } from "lucide-react";
+
+import CreateProjectWizard from "./modules/kora-smart/CreateProjectWizard";
 
 /**
  * KORA — UI Prototype (DEMO)
  * - Login
  * - Registro (Form + OTP por SMS demo)
  * - Home post-login
+ * - KORA Smart Wizard (demo)
  */
 
 // ==================
@@ -92,10 +96,15 @@ function getDistrictsByCanton(cantonId: string) {
   return DISTRICTS.filter((d) => d.cantonId === cantonId);
 }
 
+type Route = "login" | "register" | "home" | "smart";
+
+const MARKET_URL = "https://app.base44.com/apps/697d1f9fdb2ee04450026056/editor/preview";
+
 export default function KoraPrototype() {
-  const [route, setRoute] = useState<"login" | "register" | "home">("login");
-  /* const [userName, setUserName] = useState("Rodrigo"); */
+  const [route, setRoute] = useState<Route>("login");
   const [displayName, setDisplayName] = useState("Rodrigo");
+
+  const isAuthed = route === "home" || route === "smart";
 
   return (
     <div className="min-h-screen w-full bg-[#070B18] text-white">
@@ -108,26 +117,44 @@ export default function KoraPrototype() {
         </div>
 
         <div className="flex items-center gap-3">
-          {route === "home" ? (
+          {isAuthed ? (
             <>
               <nav className="hidden items-center gap-6 text-sm text-white/80 md:flex">
                 <a
-  href="https://app.base44.com/apps/697d1f9fdb2ee04450026056/editor/preview"
-  target="_blank"
-  rel="noreferrer"
-  className="flex items-center gap-2 transition hover:text-white"
->
-  Market
-</a>
-                <NavItem>Smart</NavItem>
+                  href={MARKET_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 transition hover:text-white"
+                >
+                  Market
+                </a>
+
+                {/* ✅ Smart ahora navega */}
+                <button
+                  type="button"
+                  onClick={() => setRoute("smart")}
+                  className="flex items-center gap-2 transition hover:text-white"
+                >
+                  Smart
+                </button>
+
                 <NavItem>Cálculo</NavItem>
                 <NavItem>Mis Proyectos</NavItem>
                 <NavItem icon={<HelpCircle className="h-4 w-4" />}>Soporte</NavItem>
               </nav>
+
               <div className="flex items-center gap-2">
+                {/* Back solo en wizard */}
+                {route === "smart" && (
+                  <IconButton title="Volver" onClick={() => setRoute("home")}>
+                    <ArrowLeft className="h-4 w-4" />
+                  </IconButton>
+                )}
+
                 <IconButton title="Perfil">
                   <User className="h-4 w-4" />
                 </IconButton>
+
                 <IconButton
                   title="Cerrar sesión"
                   onClick={() => {
@@ -159,25 +186,31 @@ export default function KoraPrototype() {
             onGoRegister={() => setRoute("register")}
           />
         ) : route === "register" ? (
-<RegisterScreen
-  onCancel={() => setRoute("login")}
-  onCompleted={(fullName) => {
-    setDisplayName(fullName);
-    alert("Registro completado ✅. Ahora podés iniciar sesión.");
-    setRoute("login");
-  }}
-/>
+          <RegisterScreen
+            onCancel={() => setRoute("login")}
+            onCompleted={(fullName) => {
+              setDisplayName(fullName);
+              alert("Registro completado ✅. Ahora podés iniciar sesión.");
+              setRoute("login");
+            }}
+          />
+        ) : route === "smart" ? (
+          <CreateProjectWizard onExit={() => setRoute("home")} />
         ) : (
-          <HomeScreen userName={displayName} />
+          <HomeScreen
+            userName={displayName}
+            onGoSmart={() => setRoute("smart")}
+          />
         )}
 
         {/* Dev switch */}
         <div className="mt-10 flex items-center justify-center">
           <button
             onClick={() =>
-              setRoute((r) => (r === "login" ? "register" : r === "register" ? "home" : "login"))
+              setRoute((r) => (r === "login" ? "register" : r === "register" ? "home" : r === "home" ? "smart" : "login"))
             }
             className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/70 backdrop-blur hover:bg-white/10"
+            type="button"
           >
             Alternar pantalla (demo)
           </button>
@@ -225,17 +258,7 @@ function LoginScreen({
         </motion.p>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <PrimaryButton
-            onClick={() => {
-              /* const name = email.split("@")[0] || "Rodrigo";
-              onSignedIn(capitalize(name)); */
-              onSignedIn("Rodrigo");
-            }}
-          >
-            Ingresar
-          </PrimaryButton>
-
-          {/* ✅ Ahora navega a registro */}
+          <PrimaryButton onClick={() => onSignedIn("Rodrigo")}>Ingresar</PrimaryButton>
           <SecondaryButton onClick={onGoRegister}>Crear cuenta</SecondaryButton>
         </div>
 
@@ -324,7 +347,6 @@ function LoginScreen({
               Continuar con SSO
             </button>
 
-            {/* ✅ Acceso a registro desde la card también */}
             <button
               onClick={onGoRegister}
               className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80 backdrop-blur hover:bg-white/10"
@@ -355,7 +377,6 @@ function RegisterScreen({
   onCancel: () => void;
   onCompleted: (fullName: string) => void;
 }) {
-
   const [step, setStep] = useState<"form" | "otp">("form");
   const [loading, setLoading] = useState(false);
 
@@ -364,19 +385,15 @@ function RegisterScreen({
   const [otpInput, setOtpInput] = useState("");
 
   const [form, setForm] = useState({
-    /* identification: "", */
     firstName: "",
     lastName: "",
     phone: "",
     email: "",
     password: "",
-    category: "Cliente",
-
+    category: "Constructor",
     provinceId: "SJ",
     cantonId: "",
     districtName: "",
-
-    /* otherSigns: "", */
   });
 
   const cantons = getCantonsByProvince(form.provinceId);
@@ -384,7 +401,7 @@ function RegisterScreen({
 
   const set =
     (k: keyof typeof form) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((p) => ({ ...p, [k]: e.target.value }));
 
   const onProvinceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -404,7 +421,6 @@ function RegisterScreen({
   };
 
   const continueToOtp = async () => {
-    // Validación mínima
     if (!form.firstName || !form.lastName || !form.phone || !form.email || !form.password) {
       alert("Completá: Nombre, Apellidos, Celular, Email y Password.");
       return;
@@ -416,7 +432,6 @@ function RegisterScreen({
 
     setLoading(true);
     try {
-      // DEMO: enviar OTP (alert)
       sendOtpDemo();
       setStep("otp");
     } finally {
@@ -461,10 +476,6 @@ function RegisterScreen({
         {step === "form" ? (
           <>
             <div className="mt-6 grid gap-4 md:grid-cols-2">
-{/*               <Field label="Identificación" icon={<Lock className="h-4 w-4" />}>
-                <input className="w-full bg-transparent text-sm outline-none placeholder:text-white/40" value={form.identification} onChange={set("identification")} />
-              </Field> */}
-
               <Field label="Nombre" icon={<User className="h-4 w-4" />}>
                 <input className="w-full bg-transparent text-sm outline-none placeholder:text-white/40" value={form.firstName} onChange={set("firstName")} />
               </Field>
@@ -488,7 +499,7 @@ function RegisterScreen({
               <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 backdrop-blur">
                 <div className="mb-1 text-xs text-white/60">Categoría</div>
                 <select className="w-full bg-transparent text-sm outline-none" value={form.category} onChange={set("category")}>
-                  {["Desarrollador", "Constructor", "Consultor", "Diseñador","Inversionista","Propietario"].map((c) => (
+                  {["Desarrollador", "Constructor", "Consultor", "Diseñador", "Inversionista", "Propietario"].map((c) => (
                     <option key={c} value={c} className="text-black">
                       {c}
                     </option>
@@ -496,7 +507,6 @@ function RegisterScreen({
                 </select>
               </div>
 
-              {/* Provincia */}
               <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 backdrop-blur">
                 <div className="mb-1 text-xs text-white/60">Provincia</div>
                 <select className="w-full bg-transparent text-sm outline-none" value={form.provinceId} onChange={onProvinceChange}>
@@ -508,7 +518,6 @@ function RegisterScreen({
                 </select>
               </div>
 
-              {/* Cantón */}
               <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 backdrop-blur">
                 <div className="mb-1 text-xs text-white/60">Cantón</div>
                 <select className="w-full bg-transparent text-sm outline-none" value={form.cantonId} onChange={onCantonChange}>
@@ -523,7 +532,6 @@ function RegisterScreen({
                 </select>
               </div>
 
-              {/* Distrito */}
               <div className="rounded-2xl border border-white/10 bg-white/5 px-3 py-3 backdrop-blur">
                 <div className="mb-1 text-xs text-white/60">Distrito</div>
                 <select
@@ -542,18 +550,6 @@ function RegisterScreen({
                   ))}
                 </select>
               </div>
-
-              {/* Otras señas */}
-{/*               <div className="md:col-span-2">
-                <div className="mb-1 text-xs text-white/60">Otras Señas</div>
-                <textarea
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-sm outline-none placeholder:text-white/40 backdrop-blur"
-                  rows={3}
-                  value={form.otherSigns}
-                  onChange={set("otherSigns")}
-                  placeholder="Ej: 200m sur del parque..."
-                />
-              </div> */}
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
@@ -575,13 +571,7 @@ function RegisterScreen({
 
               <div className="mt-4 flex flex-wrap gap-3">
                 <PrimaryButton onClick={verifyOtpDemo}>{loading ? "Verificando..." : "Verificar"}</PrimaryButton>
-                <SecondaryButton
-                  onClick={() => {
-                    sendOtpDemo();
-                  }}
-                >
-                  Reenviar
-                </SecondaryButton>
+                <SecondaryButton onClick={() => sendOtpDemo()}>Reenviar</SecondaryButton>
                 <SecondaryButton onClick={() => setStep("form")}>Volver</SecondaryButton>
               </div>
 
@@ -596,8 +586,24 @@ function RegisterScreen({
   );
 }
 
-function HomeScreen({ userName }: { userName: string }) {
-  const modules = useMemo(
+type ModuleCard = {
+  title: string;
+  desc: string;
+  cta: string;
+  icon: React.ReactNode;
+  accent: string;
+  url?: string;
+  onClick?: () => void;
+};
+
+function HomeScreen({
+  userName,
+  onGoSmart,
+}: {
+  userName: string;
+  onGoSmart: () => void;
+}) {
+  const modules = useMemo<ModuleCard[]>(
     () => [
       {
         title: "KORA Market",
@@ -605,6 +611,7 @@ function HomeScreen({ userName }: { userName: string }) {
         cta: "Ir a Market",
         icon: <ShoppingCart className="h-5 w-5" />,
         accent: "from-[#2EE6A6]/25 to-[#3B82F6]/10",
+        url: MARKET_URL,
       },
       {
         title: "KORA Smart",
@@ -612,6 +619,7 @@ function HomeScreen({ userName }: { userName: string }) {
         cta: "Cotizar mi obra",
         icon: <Sparkles className="h-5 w-5" />,
         accent: "from-[#A3FF5A]/25 to-[#2EE6A6]/10",
+        onClick: onGoSmart,
       },
       {
         title: "KORA Custom",
@@ -619,6 +627,7 @@ function HomeScreen({ userName }: { userName: string }) {
         cta: "Calcular materiales",
         icon: <Calculator className="h-5 w-5" />,
         accent: "from-[#60A5FA]/25 to-[#2EE6A6]/10",
+        onClick: () => alert("Demo: KORA Custom (pendiente)"),
       },
       {
         title: "Mis Proyectos",
@@ -626,9 +635,10 @@ function HomeScreen({ userName }: { userName: string }) {
         cta: "Ver mis proyectos",
         icon: <ClipboardList className="h-5 w-5" />,
         accent: "from-[#94A3B8]/25 to-[#60A5FA]/10",
+        onClick: () => alert("Demo: Mis Proyectos (pendiente)"),
       },
     ],
-    []
+    [onGoSmart]
   );
 
   return (
@@ -668,7 +678,11 @@ function HomeScreen({ userName }: { userName: string }) {
 
               <div className="mt-6">
                 <button
-                  onClick={() => alert(`Navegar a: ${m.title}`)}
+                  onClick={() => {
+                    if (m.onClick) return m.onClick();
+                    if (m.url) return window.open(m.url, "_blank", "noreferrer");
+                    alert(`Navegar a: ${m.title}`);
+                  }}
                   className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-medium text-white/90 backdrop-blur transition hover:bg-white/15 group-hover:shadow-[0_10px_35px_rgba(46,230,166,0.12)]"
                   type="button"
                 >
@@ -714,9 +728,6 @@ function KoraLogo() {
           <span className="bg-gradient-to-r from-white to-white/80 bg-clip-text text-transparent">R</span>
           <span className="bg-gradient-to-r from-white to-white bg-clip-text text-transparent">A</span>
         </div>
-      </div>
-      <div className="hidden rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-white/70 backdrop-blur sm:block">
-        {/* v0.1 • UI */}
       </div>
     </div>
   );

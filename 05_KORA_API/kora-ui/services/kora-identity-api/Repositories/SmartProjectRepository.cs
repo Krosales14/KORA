@@ -112,5 +112,40 @@ public sealed class SmartProjectRepository
             await tx.RollbackAsync();
             throw;
         }
+
+
+    }
+
+    public async Task<List<ProjectDto>> ListProjectsAsync(int skip = 0, int take = 200)
+    {
+        using var cn = _db.Create();
+        var rows = await cn.QueryAsync<ProjectDto>(
+            "Projects.UspProjectList",
+            new { Skip = skip, Take = take },
+            commandType: CommandType.StoredProcedure);
+
+        return rows.ToList();
+    }
+
+    public async Task<List<ProjectVersionDto>> ListProjectVersionsAsync(Guid? projectId = null, int skip = 0, int take = 200)
+    {
+        using var cn = _db.Create();
+        var rows = await cn.QueryAsync<ProjectVersionDto>(
+            "Projects.UspProjectVersionList",
+            new { ProjectId = projectId, Skip = skip, Take = take },
+            commandType: CommandType.StoredProcedure);
+
+        return rows.ToList();
+    }
+
+    public async Task<List<dynamic>> ListProjectDriverValuesAsync(Guid? projectVersionId = null, int skip = 0, int take = 300)
+    {
+        using var cn = _db.Create();
+        var rows = await cn.QueryAsync(
+            "Projects.UspProjectDriverValuesList",
+            new { ProjectVersionId = projectVersionId, Skip = skip, Take = take },
+            commandType: CommandType.StoredProcedure);
+
+        return rows.ToList();
     }
 }

@@ -14,7 +14,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("dev-cors", p =>
-        p.WithOrigins("http://localhost:5173")
+        p.WithOrigins("http://localhost:5173", "http://localhost:5174")
          .AllowAnyHeader()
          .AllowAnyMethod());
 });
@@ -187,6 +187,25 @@ api.MapPut("/project-driver-values", async (ProjectDriverValuesUpsertRequest req
 {
     await r.UpsertDriverValuesAsync(req, capturedBy: "kora-ui");
     return Results.Ok(new { status = "ok" });
+});
+
+// LISTADOS (sin filtro)
+api.MapGet("/projects", async (int? skip, int? take, SmartProjectRepository r) =>
+{
+    var rows = await r.ListProjectsAsync(skip ?? 0, take ?? 200);
+    return Results.Ok(rows);
+});
+
+api.MapGet("/project-versions", async (Guid? projectId, int? skip, int? take, SmartProjectRepository r) =>
+{
+    var rows = await r.ListProjectVersionsAsync(projectId, skip ?? 0, take ?? 200);
+    return Results.Ok(rows);
+});
+
+api.MapGet("/project-driver-values", async (Guid? projectVersionId, int? skip, int? take, SmartProjectRepository r) =>
+{
+    var rows = await r.ListProjectDriverValuesAsync(projectVersionId, skip ?? 0, take ?? 300);
+    return Results.Ok(rows);
 });
 
 // Health
